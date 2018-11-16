@@ -86,18 +86,4 @@ public class Ebisu {
     List<Double> newAlphaBeta = meanVarToBeta(mu, v);
     return new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tnow);
   }
-  public static void main(String[] args) {
-    System.out.println(Gamma.logGamma(3.3));
-    System.out.println("Hello World!");
-    EbisuModel m = new EbisuModel(2, 2, 2);
-    System.out.println(predictRecall(m, 2));
-
-    System.out.println(Math.exp(3.3) + Math.exp(4.4) - Math.exp(5.5));
-    System.out.println(
-        Math.log(Math.abs(Math.exp(3.3) + Math.exp(4.4) - Math.exp(5.5))));
-    System.out.println(Arrays.toString(
-        logSumExp(List.of(3.3, 4.4, 5.5), List.of(1., 1., -1.))));
-    System.out.println(updateRecall(m, true, 2e-0));
-    System.out.println(updateRecall(m, false, 2e-0));
-  }
 }

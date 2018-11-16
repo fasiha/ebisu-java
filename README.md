@@ -1,1 +1,1 @@
-Run: `mvn exec:java -Dexec.mainClass="me.aldebrn.ebisu.Ebisu"`
+Run tests with `mvn test`.
