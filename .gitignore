@@ -28,3 +28,6 @@ hs_err_pid*
 .settings/
 .vscode/
 target/
+
+# macOS
+.DS_Store
