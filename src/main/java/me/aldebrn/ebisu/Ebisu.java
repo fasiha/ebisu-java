@@ -8,7 +8,8 @@ import java.util.Arrays;
 import java.util.stream.IntStream;
 
 /**
- * Noninstantiable class to provides `predictRecall` and `updateRecall`.
+ * Noninstantiable class to provides `predictRecall` and `updateRecall` methods
+ * that operate on Ebisu model objects (implementing `EbisuInterface`).
  */
 public class Ebisu {
   /**
@@ -24,7 +25,7 @@ public class Ebisu {
   public static double predictRecall(EbisuInterface prior, double tnow) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
-    double dt = tnow / prior.getT();
+    double dt = tnow / prior.getTime();
     return Math.exp(Gamma.logGamma(alpha + dt) -
                     Gamma.logGamma(alpha + beta + dt) -
                     (Gamma.logGamma(alpha) - Gamma.logGamma(alpha + beta)));
@@ -78,7 +79,7 @@ public class Ebisu {
    * @param y Second value (in log domain)
    * @return result in the linear domain, Analogous to `exp(x) - exp(y)`
    */
-  public static double subtractexp(double x, double y) {
+  private static double subtractexp(double x, double y) {
     var maxval = Math.max(x, y);
     return Math.exp(maxval) * (Math.exp(x - maxval) - Math.exp(y - maxval));
   }
@@ -93,7 +94,7 @@ public class Ebisu {
    * @param v v̄ in the Wikipedia reference above
    * @return a 2-element `List<Double>`, containing `alpha` and `beta`
    */
-  public static List<Double> meanVarToBeta(double mean, double v) {
+  private static List<Double> meanVarToBeta(double mean, double v) {
     double tmp = mean * (1 - mean) / v - 1;
     double alpha = mean * tmp;
     double beta = (1 - mean) * tmp;
@@ -115,7 +116,7 @@ public class Ebisu {
                                             boolean result, double tnow) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
-    double dt = tnow / prior.getT();
+    double dt = tnow / prior.getTime();
     double mu = 0;
     double v = 0;
     if (result) {
