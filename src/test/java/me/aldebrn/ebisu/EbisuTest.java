@@ -1,18 +1,37 @@
 package me.aldebrn.ebisu;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import org.apache.commons.math3.exception.TooManyEvaluationsException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 class EbisuTests {
   private double eps = Math.ulp(1.0);
 
+  private static double relerr(double dirt, double gold) {
+    return (dirt == gold) ? 0 : Math.abs(dirt - gold) / Math.abs(gold);
+  }
+
+  @Test
+  @DisplayName("verify halflife")
+  void testHalflife() {
+    var hl = 20.0;
+    EbisuModel m = new EbisuModel(2, 2, hl);
+    assertTrue(Math.abs(Ebisu.modelToPercentileDecay(m, .5, true) - hl) > 1e-2);
+    assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, false, 1e-6), hl) <
+               1e-3);
+    assertThrows(TooManyEvaluationsException.class,
+                 () -> Ebisu.modelToPercentileDecay(m, .5, false, 1e-150));
+  }
+
   @Test
   @DisplayName("Ebisu predict at exactly half-life")
   void predict() {
     EbisuModel m = new EbisuModel(2, 2, 2);
-    double p = Ebisu.predictRecall(m, 2);
+    double p = Ebisu.predictRecall(m, 2, true);
     assertEquals(0.5, p, eps, "1 + 1 should equal 2");
   }
 

@@ -1,17 +1,57 @@
 package me.aldebrn.ebisu;
 
-import org.apache.commons.math3.special.Gamma;
-import java.lang.Math;
-import java.util.List;
 import java.util.Collections;
-import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.commons.math3.analysis.solvers.BisectionSolver;
+import org.apache.commons.math3.special.Gamma;
 
 /**
  * Noninstantiable class to provides `predictRecall` and `updateRecall` methods
  * that operate on Ebisu model objects (implementing `EbisuInterface`).
  */
 public class Ebisu {
+  /**
+   * This will cache calls to logGamma
+   */
+  private static Map<Double, Double> LOGGAMMA_CACHE = new ConcurrentHashMap<>();
+
+  /**
+   * Memoized logGamma
+   */
+  private static Double logGammaCached(Double x) {
+    return LOGGAMMA_CACHE.computeIfAbsent(x, y -> Gamma.logGamma(y));
+  }
+
+  /**
+   * Evaluates `log(Beta(a1, b) / Beta(a, b))`
+   */
+  private static Double logBetaRatio(Double a1, Double a, Double b) {
+    return Gamma.logGamma(a1) - Gamma.logGamma(a1 + b) + logGammaCached(a + b) -
+        logGammaCached(a);
+  }
+
+  /**
+   * Evaluates `log(Beta(a,b)) = Gamma(a) Gamma(b) / Gamma(a+b)`
+   */
+  private static Double logBeta(Double a, Double b) {
+    return logGammaCached(a) + logGammaCached(b) - logGammaCached(a + b);
+  }
+
+  /**
+   * Estimate recall log-probability (real number between -∞ and +∞)
+   * @param prior the
+   * @param prior the existing Ebisu model
+   * @param tnow the time elapsed since this model was last reviewed
+   * @return log-probability of recall
+   */
+  public static double predictRecall(EbisuInterface prior, double tnow) {
+    return predictRecall(prior, tnow, false);
+  }
+
   /**
    * Estimate recall probability.
    *
@@ -20,15 +60,16 @@ public class Ebisu {
    *
    * @param prior the existing Ebisu model
    * @param tnow the time elapsed since this model was last reviewed
+   * @param exact if false, return log-probabilities (faster)
    * @return the probability of recall (0 (will fail) to 1 (will pass))
    */
-  public static double predictRecall(EbisuInterface prior, double tnow) {
+  public static double predictRecall(EbisuInterface prior, double tnow,
+                                     boolean exact) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
     double dt = tnow / prior.getTime();
-    return Math.exp(Gamma.logGamma(alpha + dt) -
-                    Gamma.logGamma(alpha + beta + dt) -
-                    (Gamma.logGamma(alpha) - Gamma.logGamma(alpha + beta)));
+    var ret = logBetaRatio(alpha + dt, alpha, beta);
+    return exact ? Math.exp(ret) : ret;
   }
 
   /**
@@ -67,6 +108,13 @@ public class Ebisu {
     double abs = Math.log(sum) + amax;
     double[] ret = {abs, sign};
     return ret;
+  }
+
+  /**
+   * Stably calculate `log(exp(a) - exp(b))`.
+   */
+  private static double _logsubexp(Double a, Double b) {
+    return logSumExp(List.of(a, b), List.of(1.0, -1.0))[0];
   }
 
   /**
@@ -114,47 +162,151 @@ public class Ebisu {
    */
   public static EbisuInterface updateRecall(EbisuInterface prior,
                                             boolean result, double tnow) {
+    return updateRecall(prior, result, tnow, true, prior.getTime());
+  }
+
+  /**
+   * Actual worker method that calculates the posterior memory model at the same
+   * time in the future as the prior, and rebalances as necessary.
+   */
+  private static EbisuInterface updateRecall(EbisuInterface prior,
+                                             boolean result, double tnow,
+                                             boolean rebalance, Double tback) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
+    double t = prior.getTime();
     double dt = tnow / prior.getTime();
-    double mu = 0;
-    double v = 0;
+    double et = tnow / tback;
+    double mean = 0;
+    double sig2 = 0;
     if (result) {
-      double same =
-          Gamma.logGamma(alpha + beta + dt) - Gamma.logGamma(alpha + dt);
-      double muln = Gamma.logGamma(alpha + 2 * dt) -
-                    Gamma.logGamma(alpha + beta + 2 * dt) + same;
-      mu = Math.exp(muln);
-      v = subtractexp(same + Gamma.logGamma(alpha + 3 * dt) -
-                          Gamma.logGamma(alpha + beta + 3 * dt),
-                      2 * muln);
+      if (tback == t) {
+        var proposed = new EbisuModel(alpha + dt, beta, t);
+        return rebalance ? _rebalance(prior, result, tnow, proposed) : proposed;
+      }
+      var logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
+      var logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
+      mean = Math.exp(logmean);
+      sig2 = subtractexp(logm2, 2 * logmean);
+
     } else {
-      double[] s =
-          IntStream.range(0, 4)
-              .mapToDouble(n
-                           -> Gamma.logGamma(alpha + n * dt) -
-                                  Gamma.logGamma(alpha + beta + n * dt))
-              .toArray();
-      mu = Math.expm1(s[2] - s[1]) / -Math.expm1(s[0] - s[1]);
-
-      double[] n1 = logSumExp(List.of(s[1], s[0]), List.of(1., -1.));
-      n1[0] += s[3];
-
-      var n2 = logSumExp(List.of(s[0], s[1], s[2]), List.of(1., 1., -1.));
-      n2[0] += s[2];
-
-      double[] n3 = {s[1] * 2, 1.};
-
-      var d = logSumExp(List.of(s[1], s[0]), List.of(1., -1.));
-      d[0] *= 2;
-
-      var n = logSumExp(List.of(n1[0], n2[0], n3[0]),
-                        List.of(n1[1], n2[1], -n3[1]));
-
-      v = Math.exp(n[0] - d[0]);
+      var logDenominator =
+          _logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
+      mean = subtractexp(logBeta(alpha + dt / et, beta) - logDenominator,
+                         logBeta(alpha + dt / et * (et + 1), beta) -
+                             logDenominator);
+      var m2 = subtractexp(logBeta(alpha + 2 * dt / et, beta) - logDenominator,
+                           logBeta(alpha + dt / et * (et + 2), beta) -
+                               logDenominator);
+      if (m2 <= 0) {
+        throw new RuntimeException("invalid second moment found");
+      }
+      sig2 = m2 - mean * mean;
     }
-    List<Double> newAlphaBeta = meanVarToBeta(mu, v);
+    List<Double> newAlphaBeta = meanVarToBeta(mean, sig2);
     return new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tnow);
+  }
+
+  /**
+   * Given a prior Ebisu model, a quiz result, the time of a quiz, and a
+   * proposed posterior model, rebalance the posterior so its alpha and beta
+   * parameters are close. In other words, move the posterior closer to its
+   * approximate halflife for numerical stability.
+   */
+  private static EbisuInterface _rebalance(EbisuInterface prior, boolean result,
+                                           double tnow,
+                                           EbisuInterface proposed) {
+    double newAlpha = proposed.getAlpha();
+    double newBeta = proposed.getBeta();
+    if (newAlpha > 2 * newBeta || newBeta > 2 * newAlpha) {
+      var roughHalflife = modelToPercentileDecay(proposed, 0.5, true);
+      return updateRecall(prior, result, tnow, false, roughHalflife);
+    }
+    return proposed;
+  }
+
+  /**
+   * Compute an Ebisu memory model's half-life
+   *
+   * @param model Ebisu memory model
+   * @return time at which `predictRecall` would return 0.5
+   */
+  public static double modelToPercentileDecay(EbisuInterface model) {
+    return modelToPercentileDecay(model, 0.5, false, 1e-4);
+  }
+
+  /**
+   * Compute time at which an Ebisu memory model predicts a given percentile
+   *
+   * @param model Ebisu memory model
+   * @param percentile between 0 and 1 (0.5 corresponds to half-life)
+   * @param coarse if true, returns an approximate solution (within an order of
+   *     magnitude)
+   * @return time at which `predictRecall` would return `percentile`
+   */
+  public static double modelToPercentileDecay(EbisuInterface model,
+                                              double percentile,
+                                              boolean coarse) {
+    return modelToPercentileDecay(model, percentile, coarse, 1e-4);
+  }
+
+  /**
+   * Compute time at which an Ebisu memory model predicts a given percentile at
+   * a given accuracy
+   *
+   * @param model Ebisu memory model
+   * @param percentile between 0 and 1 (0.5 corresponds to half-life)
+   * @param coarse if true, returns an approximate solution (within an order of
+   *     magnitude)
+   * @param tolerance if `coarse`, no effect; otherwise controls accuracy of the
+   *     return value. This should be <0.01 but >2e-16 (machine precision).
+   * @return time at which `predictRecall` would return `percentile`
+   */
+  public static double modelToPercentileDecay(EbisuInterface model,
+                                              double percentile, boolean coarse,
+                                              double tolerance) {
+    if (percentile < 0 || percentile > 1) {
+      throw new RuntimeException(
+          "percentiles must be between (0, 1) exclusive");
+    }
+    double alpha = model.getAlpha();
+    double beta = model.getBeta();
+    double t0 = model.getTime();
+
+    var logBab = logBeta(alpha, beta);
+    var logPercentile = Math.log(percentile);
+    Function<Double, Double> f = lndelta
+        -> (logBeta(alpha + Math.exp(lndelta), beta) - logBab) - logPercentile;
+
+    var bracket_width = coarse ? 1.0 : 6.0;
+    var blow = -bracket_width / 2.0;
+    var bhigh = bracket_width / 2.0;
+    var flow = f.apply(blow);
+    var fhigh = f.apply(bhigh);
+    while (flow > 0 && fhigh > 0) {
+      // Move the bracket up.
+      blow = bhigh;
+      flow = fhigh;
+      bhigh += bracket_width;
+      fhigh = f.apply(bhigh);
+    }
+    while (flow < 0 && fhigh < 0) {
+      // Move the bracket down.
+      bhigh = blow;
+      fhigh = flow;
+      blow -= bracket_width;
+      flow = f.apply(blow);
+    }
+
+    if (!(flow > 0 && fhigh < 0)) {
+      throw new RuntimeException("failed to bracket");
+    }
+    if (coarse) {
+      return (Math.exp(blow) + Math.exp(bhigh)) / 2 * t0;
+    }
+    var solver = new BisectionSolver(tolerance);
+    var sol = solver.solve(10000, y -> f.apply(y), blow, bhigh);
+    return Math.exp(sol) * t0;
   }
 
   /**
