@@ -18,13 +18,11 @@ class EbisuTests {
   @Test
   @DisplayName("verify halflife")
   void testHalflife() {
-    var hl = 20.0;
+    double hl = 20.0;
     EbisuModel m = new EbisuModel(2, 2, hl);
     assertTrue(Math.abs(Ebisu.modelToPercentileDecay(m, .5, true) - hl) > 1e-2);
-    assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, false, 1e-6), hl) <
-               1e-3);
-    assertThrows(TooManyEvaluationsException.class,
-                 () -> Ebisu.modelToPercentileDecay(m, .5, false, 1e-150));
+    assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, false, 1e-6), hl) < 1e-3);
+    assertThrows(TooManyEvaluationsException.class, () -> Ebisu.modelToPercentileDecay(m, .5, false, 1e-150));
   }
 
   @Test
@@ -53,12 +51,10 @@ class EbisuTests {
   @DisplayName("Check logSumExp")
   void checkLogSumExp() {
     double expected = Math.exp(3.3) + Math.exp(4.4) - Math.exp(5.5);
-    double[] actual =
-        Ebisu.logSumExp(List.of(3.3, 4.4, 5.5), List.of(1., 1., -1.));
+    double[] actual = Ebisu.logSumExp(List.of(3.3, 4.4, 5.5), List.of(1., 1., -1.));
 
     double epsilon = Math.ulp(actual[0]);
-    assertEquals(Math.log(Math.abs(expected)), actual[0], epsilon,
-                 "Magnitude of logSumExp");
+    assertEquals(Math.log(Math.abs(expected)), actual[0], epsilon, "Magnitude of logSumExp");
 
     assertEquals(Math.signum(expected), actual[1], "Sign of logSumExp");
   }

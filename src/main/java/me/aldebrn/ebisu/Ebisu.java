@@ -22,16 +22,13 @@ public class Ebisu {
   /**
    * Memoized logGamma
    */
-  private static Double logGammaCached(Double x) {
-    return LOGGAMMA_CACHE.computeIfAbsent(x, y -> Gamma.logGamma(y));
-  }
+  private static Double logGammaCached(Double x) { return LOGGAMMA_CACHE.computeIfAbsent(x, y -> Gamma.logGamma(y)); }
 
   /**
    * Evaluates `log(Beta(a1, b) / Beta(a, b))`
    */
   private static Double logBetaRatio(Double a1, Double a, Double b) {
-    return Gamma.logGamma(a1) - Gamma.logGamma(a1 + b) + logGammaCached(a + b) -
-        logGammaCached(a);
+    return Gamma.logGamma(a1) - Gamma.logGamma(a1 + b) + logGammaCached(a + b) - logGammaCached(a);
   }
 
   /**
@@ -48,9 +45,7 @@ public class Ebisu {
    * @param tnow the time elapsed since this model was last reviewed
    * @return log-probability of recall
    */
-  public static double predictRecall(EbisuInterface prior, double tnow) {
-    return predictRecall(prior, tnow, false);
-  }
+  public static double predictRecall(EbisuInterface prior, double tnow) { return predictRecall(prior, tnow, false); }
 
   /**
    * Estimate recall probability.
@@ -63,12 +58,11 @@ public class Ebisu {
    * @param exact if false, return log-probabilities (faster)
    * @return the probability of recall (0 (will fail) to 1 (will pass))
    */
-  public static double predictRecall(EbisuInterface prior, double tnow,
-                                     boolean exact) {
+  public static double predictRecall(EbisuInterface prior, double tnow, boolean exact) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
     double dt = tnow / prior.getTime();
-    var ret = logBetaRatio(alpha + dt, alpha, beta);
+    double ret = logBetaRatio(alpha + dt, alpha, beta);
     return exact ? Math.exp(ret) : ret;
   }
 
@@ -99,9 +93,7 @@ public class Ebisu {
   public static double[] logSumExp(List<Double> a, List<Double> b) {
     double amax = Collections.max(a);
     double sum = IntStream.range(0, a.size())
-                     .mapToDouble(i
-                                  -> Math.exp(a.get(i) - amax) *
-                                         (i < b.size() ? b.get(i) : 1.0))
+                     .mapToDouble(i -> Math.exp(a.get(i) - amax) * (i < b.size() ? b.get(i) : 1.0))
                      .reduce(0.0, Double::sum);
     double sign = Math.signum(sum);
     sum *= sign;
@@ -113,9 +105,7 @@ public class Ebisu {
   /**
    * Stably calculate `log(exp(a) - exp(b))`.
    */
-  private static double _logsubexp(Double a, Double b) {
-    return logSumExp(List.of(a, b), List.of(1.0, -1.0))[0];
-  }
+  private static double _logsubexp(Double a, Double b) { return logSumExp(List.of(a, b), List.of(1.0, -1.0))[0]; }
 
   /**
    * Given two numbers in the log domain, subtract them and leave them in the
@@ -128,7 +118,7 @@ public class Ebisu {
    * @return result in the linear domain, Analogous to `exp(x) - exp(y)`
    */
   private static double subtractexp(double x, double y) {
-    var maxval = Math.max(x, y);
+    double maxval = Math.max(x, y);
     return Math.exp(maxval) * (Math.exp(x - maxval) - Math.exp(y - maxval));
   }
 
@@ -160,8 +150,7 @@ public class Ebisu {
    * @param tnow time elapsed since quiz was last visited
    * @return new posterior (updated) Ebisu model
    */
-  public static EbisuInterface updateRecall(EbisuInterface prior,
-                                            boolean result, double tnow) {
+  public static EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow) {
     return updateRecall(prior, result, tnow, true, prior.getTime());
   }
 
@@ -169,9 +158,8 @@ public class Ebisu {
    * Actual worker method that calculates the posterior memory model at the same
    * time in the future as the prior, and rebalances as necessary.
    */
-  private static EbisuInterface updateRecall(EbisuInterface prior,
-                                             boolean result, double tnow,
-                                             boolean rebalance, Double tback) {
+  private static EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow, boolean rebalance,
+                                             Double tback) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
     double t = prior.getTime();
@@ -181,23 +169,20 @@ public class Ebisu {
     double sig2 = 0;
     if (result) {
       if (tback == t) {
-        var proposed = new EbisuModel(alpha + dt, beta, t);
+        EbisuModel proposed = new EbisuModel(alpha + dt, beta, t);
         return rebalance ? _rebalance(prior, result, tnow, proposed) : proposed;
       }
-      var logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
-      var logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
+      double logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
+      double logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
       mean = Math.exp(logmean);
       sig2 = subtractexp(logm2, 2 * logmean);
 
     } else {
-      var logDenominator =
-          _logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
+      double logDenominator = _logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
       mean = subtractexp(logBeta(alpha + dt / et, beta) - logDenominator,
-                         logBeta(alpha + dt / et * (et + 1), beta) -
-                             logDenominator);
-      var m2 = subtractexp(logBeta(alpha + 2 * dt / et, beta) - logDenominator,
-                           logBeta(alpha + dt / et * (et + 2), beta) -
-                               logDenominator);
+                         logBeta(alpha + dt / et * (et + 1), beta) - logDenominator);
+      double m2 = subtractexp(logBeta(alpha + 2 * dt / et, beta) - logDenominator,
+                              logBeta(alpha + dt / et * (et + 2), beta) - logDenominator);
       if (m2 <= 0) {
         throw new RuntimeException("invalid second moment found");
       }
@@ -213,13 +198,11 @@ public class Ebisu {
    * parameters are close. In other words, move the posterior closer to its
    * approximate halflife for numerical stability.
    */
-  private static EbisuInterface _rebalance(EbisuInterface prior, boolean result,
-                                           double tnow,
-                                           EbisuInterface proposed) {
+  private static EbisuInterface _rebalance(EbisuInterface prior, boolean result, double tnow, EbisuInterface proposed) {
     double newAlpha = proposed.getAlpha();
     double newBeta = proposed.getBeta();
     if (newAlpha > 2 * newBeta || newBeta > 2 * newAlpha) {
-      var roughHalflife = modelToPercentileDecay(proposed, 0.5, true);
+      double roughHalflife = modelToPercentileDecay(proposed, 0.5, true);
       return updateRecall(prior, result, tnow, false, roughHalflife);
     }
     return proposed;
@@ -244,9 +227,7 @@ public class Ebisu {
    *     magnitude)
    * @return time at which `predictRecall` would return `percentile`
    */
-  public static double modelToPercentileDecay(EbisuInterface model,
-                                              double percentile,
-                                              boolean coarse) {
+  public static double modelToPercentileDecay(EbisuInterface model, double percentile, boolean coarse) {
     return modelToPercentileDecay(model, percentile, coarse, 1e-4);
   }
 
@@ -262,27 +243,24 @@ public class Ebisu {
    *     return value. This should be <0.01 but >2e-16 (machine precision).
    * @return time at which `predictRecall` would return `percentile`
    */
-  public static double modelToPercentileDecay(EbisuInterface model,
-                                              double percentile, boolean coarse,
+  public static double modelToPercentileDecay(EbisuInterface model, double percentile, boolean coarse,
                                               double tolerance) {
     if (percentile < 0 || percentile > 1) {
-      throw new RuntimeException(
-          "percentiles must be between (0, 1) exclusive");
+      throw new RuntimeException("percentiles must be between (0, 1) exclusive");
     }
     double alpha = model.getAlpha();
     double beta = model.getBeta();
     double t0 = model.getTime();
 
-    var logBab = logBeta(alpha, beta);
-    var logPercentile = Math.log(percentile);
-    Function<Double, Double> f = lndelta
-        -> (logBeta(alpha + Math.exp(lndelta), beta) - logBab) - logPercentile;
+    double logBab = logBeta(alpha, beta);
+    double logPercentile = Math.log(percentile);
+    Function<Double, Double> f = lndelta -> (logBeta(alpha + Math.exp(lndelta), beta) - logBab) - logPercentile;
 
-    var bracket_width = coarse ? 1.0 : 6.0;
-    var blow = -bracket_width / 2.0;
-    var bhigh = bracket_width / 2.0;
-    var flow = f.apply(blow);
-    var fhigh = f.apply(bhigh);
+    double bracket_width = coarse ? 1.0 : 6.0;
+    double blow = -bracket_width / 2.0;
+    double bhigh = bracket_width / 2.0;
+    double flow = f.apply(blow);
+    double fhigh = f.apply(bhigh);
     while (flow > 0 && fhigh > 0) {
       // Move the bracket up.
       blow = bhigh;
@@ -304,8 +282,8 @@ public class Ebisu {
     if (coarse) {
       return (Math.exp(blow) + Math.exp(bhigh)) / 2 * t0;
     }
-    var solver = new BisectionSolver(tolerance);
-    var sol = solver.solve(10000, y -> f.apply(y), blow, bhigh);
+    BisectionSolver solver = new BisectionSolver(tolerance);
+    double sol = solver.solve(10000, y -> f.apply(y), blow, bhigh);
     return Math.exp(sol) * t0;
   }
 
