@@ -182,17 +182,11 @@ public class Ebisu {
                          logBeta(alpha + dt / et * (et + 1), beta) - logDenominator);
       double m2 = subtractexp(logBeta(alpha + 2 * dt / et, beta) - logDenominator,
                               logBeta(alpha + dt / et * (et + 2), beta) - logDenominator);
-      if (m2 <= 0) {
-        throw new RuntimeException("invalid second moment found");
-      }
+      if (m2 <= 0) { throw new RuntimeException("invalid second moment found"); }
       sig2 = m2 - mean * mean;
     }
-    if (mean <= 0) {
-      throw new RuntimeException("invalid mean found");
-    }
-    if (sig2 <= 0) {
-      throw new RuntimeException("invalid variance found");
-    }
+    if (mean <= 0) { throw new RuntimeException("invalid mean found"); }
+    if (sig2 <= 0) { throw new RuntimeException("invalid variance found"); }
     List<Double> newAlphaBeta = meanVarToBeta(mean, sig2);
     EbisuModel proposed = new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tback);
     return rebalance ? _rebalance(prior, result, tnow, proposed) : proposed;
@@ -282,12 +276,8 @@ public class Ebisu {
       flow = f.apply(blow);
     }
 
-    if (!(flow > 0 && fhigh < 0)) {
-      throw new RuntimeException("failed to bracket");
-    }
-    if (coarse) {
-      return (Math.exp(blow) + Math.exp(bhigh)) / 2 * t0;
-    }
+    if (!(flow > 0 && fhigh < 0)) { throw new RuntimeException("failed to bracket"); }
+    if (coarse) { return (Math.exp(blow) + Math.exp(bhigh)) / 2 * t0; }
     BisectionSolver solver = new BisectionSolver(tolerance);
     double sol = solver.solve(10000, y -> f.apply(y), blow, bhigh);
     return Math.exp(sol) * t0;
