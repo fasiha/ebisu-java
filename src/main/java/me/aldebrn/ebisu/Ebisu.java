@@ -159,11 +159,11 @@ public class Ebisu {
    * time in the future as the prior, and rebalances as necessary.
    */
   private static EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow, boolean rebalance,
-                                             Double tback) {
+                                             double tback) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
     double t = prior.getTime();
-    double dt = tnow / prior.getTime();
+    double dt = tnow / t;
     double et = tnow / tback;
     double mean = 0;
     double sig2 = 0;
@@ -176,7 +176,6 @@ public class Ebisu {
       double logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
       mean = Math.exp(logmean);
       sig2 = subtractexp(logm2, 2 * logmean);
-
     } else {
       double logDenominator = _logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
       mean = subtractexp(logBeta(alpha + dt / et, beta) - logDenominator,
@@ -188,8 +187,15 @@ public class Ebisu {
       }
       sig2 = m2 - mean * mean;
     }
+    if (mean <= 0) {
+      throw new RuntimeException("invalid mean found");
+    }
+    if (sig2 <= 0) {
+      throw new RuntimeException("invalid variance found");
+    }
     List<Double> newAlphaBeta = meanVarToBeta(mean, sig2);
-    return new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tnow);
+    EbisuModel proposed = new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tback);
+    return rebalance ? _rebalance(prior, result, tnow, proposed) : proposed;
   }
 
   /**
@@ -215,7 +221,7 @@ public class Ebisu {
    * @return time at which `predictRecall` would return 0.5
    */
   public static double modelToPercentileDecay(EbisuInterface model) {
-    return modelToPercentileDecay(model, 0.5, false, 1e-4);
+    return modelToPercentileDecay(model, 0.5, false);
   }
 
   /**
