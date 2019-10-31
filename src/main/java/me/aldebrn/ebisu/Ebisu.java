@@ -105,7 +105,7 @@ public class Ebisu {
   /**
    * Stably calculate `log(exp(a) - exp(b))`.
    */
-  private static double _logsubexp(Double a, Double b) { return logSumExp(List.of(a, b), List.of(1.0, -1.0))[0]; }
+  private static double logsubexp(Double a, Double b) { return logSumExp(List.of(a, b), List.of(1.0, -1.0))[0]; }
 
   /**
    * Given two numbers in the log domain, subtract them and leave them in the
@@ -170,14 +170,14 @@ public class Ebisu {
     if (result) {
       if (tback == t) {
         EbisuModel proposed = new EbisuModel(alpha + dt, beta, t);
-        return rebalance ? _rebalance(prior, result, tnow, proposed) : proposed;
+        return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
       }
       double logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
       double logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
       mean = Math.exp(logmean);
       sig2 = subtractexp(logm2, 2 * logmean);
     } else {
-      double logDenominator = _logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
+      double logDenominator = logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
       mean = subtractexp(logBeta(alpha + dt / et, beta) - logDenominator,
                          logBeta(alpha + dt / et * (et + 1), beta) - logDenominator);
       double m2 = subtractexp(logBeta(alpha + 2 * dt / et, beta) - logDenominator,
@@ -189,7 +189,7 @@ public class Ebisu {
     if (sig2 <= 0) { throw new RuntimeException("invalid variance found"); }
     List<Double> newAlphaBeta = meanVarToBeta(mean, sig2);
     EbisuModel proposed = new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tback);
-    return rebalance ? _rebalance(prior, result, tnow, proposed) : proposed;
+    return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
   }
 
   /**
@@ -198,7 +198,7 @@ public class Ebisu {
    * parameters are close. In other words, move the posterior closer to its
    * approximate halflife for numerical stability.
    */
-  private static EbisuInterface _rebalance(EbisuInterface prior, boolean result, double tnow, EbisuInterface proposed) {
+  private static EbisuInterface rebalance(EbisuInterface prior, boolean result, double tnow, EbisuInterface proposed) {
     double newAlpha = proposed.getAlpha();
     double newBeta = proposed.getBeta();
     if (newAlpha > 2 * newBeta || newBeta > 2 * newAlpha) {
