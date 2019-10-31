@@ -4,7 +4,7 @@
   <groupId>me.aldebrn.ebisu</groupId>
   <artifactId>ebisu</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.1</version>
   <name>ebisu</name>
   <url>http://maven.apache.org</url>
   <dependencies>
