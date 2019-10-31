@@ -57,7 +57,7 @@ double beta = 2;
 EbisuInterface model3 = new EbisuModel(alpha, beta, halflife); // same as above
 ```
 In jshell:
-```
+```java
 jshell> double halflife = 0.25;
 halflife ==> 0.25
 
