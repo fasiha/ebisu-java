@@ -32,6 +32,18 @@ public class EbisuModel implements EbisuInterface {
     this.time = time;
   }
 
+  public EbisuModel(double time) {
+    this.alpha = 4;
+    this.beta = 4;
+    this.time = time;
+  }
+
+  public EbisuModel(double time, double alphaBeta) {
+    this.alpha = alphaBeta;
+    this.beta = alphaBeta;
+    this.time = time;
+  }
+
   /**
    * `alpha` getter
    */
