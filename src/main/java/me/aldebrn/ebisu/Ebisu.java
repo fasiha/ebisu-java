@@ -214,18 +214,38 @@ public class Ebisu {
    * @param model Ebisu memory model
    * @return time at which `predictRecall` would return 0.5
    */
-  public static double modelToPercentileDecay(EbisuInterface model) {
-    return modelToPercentileDecay(model, 0.5, false);
-  }
+  public static double modelToPercentileDecay(EbisuInterface model) { return modelToPercentileDecay(model, 0.5); }
 
   /**
    * Compute time at which an Ebisu memory model predicts a given percentile
    *
    * @param model Ebisu memory model
    * @param percentile between 0 and 1 (0.5 corresponds to half-life)
-   * @param coarse if true, returns an approximate solution (within an order of
-   *     magnitude)
    * @return time at which `predictRecall` would return `percentile`
+   */
+  public static double modelToPercentileDecay(EbisuInterface model, double percentile) {
+    return modelToPercentileDecay(model, percentile, 1e-4);
+  }
+
+  /**
+   * Compute time at which an Ebisu memory model predicts a given percentile with some tolerance
+   *
+   * @param model Ebisu memory model
+   * @param percentile between 0 and 1 (0.5 corresponds to half-life)
+   * @param tolerance accuracy of the search for this `percentile`. This should be less than 0.01 (roughly), but
+   *     definitely greater than 2e-16 (machine precision)
+   * @return time at which `predictRecall` would return `percentile`
+   */
+  public static double modelToPercentileDecay(EbisuInterface model, double percentile, double tolerance) {
+    return modelToPercentileDecay(model, percentile, false, tolerance);
+  }
+
+  /**
+   * Optionally-coarse, within order-of-magnitude, estimate of model decay
+   *
+   * @param model Ebisu memory model
+   * @param percentile between 0 and 1 (0.5 corresponds to half-life)
+   * @param coarse if true, returns an approximate solution (within an order of magnitude)
    */
   public static double modelToPercentileDecay(EbisuInterface model, double percentile, boolean coarse) {
     return modelToPercentileDecay(model, percentile, coarse, 1e-4);
@@ -237,10 +257,8 @@ public class Ebisu {
    *
    * @param model Ebisu memory model
    * @param percentile between 0 and 1 (0.5 corresponds to half-life)
-   * @param coarse if true, returns an approximate solution (within an order of
-   *     magnitude)
-   * @param tolerance if `coarse`, no effect; otherwise controls accuracy of the
-   *     return value. This should be <0.01 but >2e-16 (machine precision).
+   * @param coarse if true, returns an approximate solution (within an order of magnitude)
+   * @param tolerance accuracy of the search for this `percentile`. Ignored if `coarse`.
    * @return time at which `predictRecall` would return `percentile`
    */
   public static double modelToPercentileDecay(EbisuInterface model, double percentile, boolean coarse,

@@ -78,8 +78,8 @@ class EbisuTests {
     double hl = 20.0;
     EbisuModel m = new EbisuModel(2, 2, hl);
     assertTrue(Math.abs(Ebisu.modelToPercentileDecay(m, .5, true) - hl) > 1e-2);
-    assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, false, 1e-6), hl) < 1e-3);
-    assertThrows(TooManyEvaluationsException.class, () -> Ebisu.modelToPercentileDecay(m, .5, false, 1e-150));
+    assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, 1e-6), hl) < 1e-3);
+    assertThrows(TooManyEvaluationsException.class, () -> Ebisu.modelToPercentileDecay(m, .5, 1e-150));
   }
 
   @Test
