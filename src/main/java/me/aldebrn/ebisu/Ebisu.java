@@ -169,7 +169,7 @@ public class Ebisu {
     double sig2 = 0;
     if (result) {
       if (tback == t) {
-        EbisuModel proposed = new EbisuModel(alpha + dt, beta, t);
+        EbisuModel proposed = new EbisuModel(t, alpha + dt, beta);
         return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
       }
       double logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
@@ -188,7 +188,7 @@ public class Ebisu {
     if (mean <= 0) { throw new RuntimeException("invalid mean found"); }
     if (sig2 <= 0) { throw new RuntimeException("invalid variance found"); }
     List<Double> newAlphaBeta = meanVarToBeta(mean, sig2);
-    EbisuModel proposed = new EbisuModel(newAlphaBeta.get(0), newAlphaBeta.get(1), tback);
+    EbisuModel proposed = new EbisuModel(tback, newAlphaBeta.get(0), newAlphaBeta.get(1));
     return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
   }
 

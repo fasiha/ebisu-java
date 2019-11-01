@@ -4,6 +4,8 @@
 
 This is a **Java** port of the original Python implementation of [Ebisu](https://github.com/fasiha/ebisu), a public-domain library intended for use by quiz apps to intelligently handle scheduling. See [Ebisu’s literate documentation](https://github.com/fasiha/ebisu) for *all* the details—this document is a quick guide to how to use Ebisu from Java and JVM languages.
 
+An official [JavaScript port](https://github.com/fasiha/ebisu.js) also exists, as does an unofficial [Go port](https://github.com/ap4y/leaf/blob/master/ebisu.go).
+
 ## Install
 
 See [JitPack](https://jitpack.io/#me.aldebrn/ebisu-java/v1.0) for Gradle, sbt, and lein instructions but for Maven, add JitPack as a repository:
@@ -87,7 +89,7 @@ The second requirement ensures that the probability distribution is valid. The h
 
 After creating this memory model, store it, along with a timestamp, in your database. As we’ll see below, Ebisu only deals with elapsed time (in units you decide), and not timestamps, so you have to store the timestamp separately.
 
-### Predict a model's current recall probability: `double predictRecall(EbisuInterface prior, double tnow[, boolean exact])`
+### Predict a model’s current recall probability: `double predictRecall(EbisuInterface prior, double tnow[, boolean exact])`
 You can ask Ebisu for the recall probability (or log-probability by default) for a memory model since the last time you calculated it:
 ```java
 double timeElapsed = 0.25; // you figure this out based on a timestamp
@@ -111,7 +113,7 @@ Here we pretend that *exactly* the halflife has elapsed and we want to know what
 
 Obviously, if `timeElapsed` is very small (i.e., one minute in the above example), the (log-)probability of recall will be very high. If the time elapsed is very large (a year), the log-probability of recall will be very low.
 
-When you have learned many flashcards, each one with its own memory model object (and don't forget the timestamp!), you can loop through all of them, calling `predictRecall` on each, and finding the flashcard most in danger of being forgotten, and quizzing on that. After the student succeeds or fails the quiz, it is time to update the memory model.
+When you have learned many flashcards, each one with its own memory model object (and don’t forget the timestamp!), you can loop through all of them, calling `predictRecall` on each, and finding the flashcard most in danger of being forgotten, and quizzing on that. After the student succeeds or fails the quiz, it is time to update the memory model.
 
 ### Update a recall probability model given a quiz result: `EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow)`
 Ebisu treats quiz results as boolean: either pass or fail. In either case, compute the time elapsed since this flashcard’s memory model was last created and then:
@@ -155,7 +157,7 @@ quintile ==> 0.8100819021650226
 jshell> double needlesslyAccurate = Ebisu.modelToPercentileDecay(updatedModel, 0.2, 1e-8);
 needlesslyAccurate ==> 0.8100994545777259
 ```
-The second argument, `percentile`, has to be between 0 and 1 (exclusive), and 0.5 corresponds to halflife. The third argument, `tolerance`, specifies the tolerance around `percentile` that [Apache Commons' Golden section search](http://commons.apache.org/proper/commons-math/javadocs/api-3.6.1/org/apache/commons/math3/analysis/solvers/BisectionSolver.html) tries to meet: the default is 1e-4. So if you use the output of this `modelToPercentileDecay` as the input to `predictRecall`, like so:
+The second argument, `percentile`, has to be between 0 and 1 (exclusive), and 0.5 corresponds to halflife. The third argument, `tolerance`, specifies the tolerance around `percentile` that [Apache Commons’ Golden section search](http://commons.apache.org/proper/commons-math/javadocs/api-3.6.1/org/apache/commons/math3/analysis/solvers/BisectionSolver.html) tries to meet: the default is 1e-4. So if you use the output of this `modelToPercentileDecay` as the input to `predictRecall`, like so:
 ```java
 double diff = Ebisu.predictRecall(updatedModel, Ebisu.modelToPercentileDecay(updatedModel, 0.2, 1e-3), true) - 0.2;
 ```
@@ -168,6 +170,30 @@ diff ==> -5.4733037021220676E-5
 ## Dev
 
 Run tests with `mvn test`.
+
+### Pseudo-Compatible Versioning (pseudo-ComVer) with other Ebisu implementations
+
+The three official implementations of the Ebisu algorithm—[Python](https://github.com/fasiha/ebisu), [JavaScript](https://github.com/fasiha/ebisu.js), and this [Java](https://github.com/fasiha/ebisu-java) port—all use the `MAJOR.MINOR.PATCH` scheme for versioning published sources and artifacts (specifically, to PyPI, NPM, and JitPack). However, because the mathematical algorithm underlying Ebisu might change from time to time, each of the three pieces of the version mean something different:
+- MAJOR = Ebisu algorithm version
+- MINOR = implementation-specific major version (releases with same MAJOR but different MINOR numbers are *not backwards compatible!*)
+- PATCH = implementation-specific minor version (releases with same MAJOR and MINOR numbers but different PATCH numbers *are* backwards compatible)
+
+This is [Compatible Versioning (ComVer)](https://staltz.com/i-wont-use-semver-patch-versions-anymore.html), which doesn’t use PATCH, except we right-shift all numbers to make room for MAJOR to be the algorithm version.
+
+Example: Java version 1.1.0 and Python version 1.0.0 implement the same algorithm (“the GB1 framework with coarse rebalancing” if you’re writing a history of Ebisu). The Java version has presumably had a version 1.0.x which is not compatible with 1.1.y. The Python version may eventually get a 1.0.1 release which will be backwards-compatible with 1.0.0; it may then get a 1.1.0 release which will *break* compatibility with Python version 1.0.z.
+
+Upshot: if you’re using 1.1.x, you can safely update to 1.1.y. But you might not be able to update to 1.2.z without checking the changelog below to see if the backwards-incompatible changes affect you.
+
+### Changelog
+#### 1.0.x
+Algorithm and feature-parity with Python 1.0.0 and JavaScript 1.0.0.
+
+### 1.1.0
+Change API for three-argument constructor of `EbisuModel`:
+- **OLD** `public EbisuModel(double alpha, double beta, double time)`
+- **NEW** `public EbisuModel(double time, double alpha, double beta)` (note `time` moved from last to first argument).
+
+This will match Python/JavaScript’s `defaultModel` function and also harmonizes EbisuModel’s one- and two-argument constructors.
 
 ## Acknowledgements
 

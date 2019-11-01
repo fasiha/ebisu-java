@@ -43,14 +43,14 @@ class EbisuTests {
         String operation = subtest.get(0).asText();
 
         JsonNode second = subtest.get(1);
-        EbisuModel ebisu = new EbisuModel(second.get(0).asDouble(), second.get(1).asDouble(), second.get(2).asDouble());
+        EbisuModel ebisu = new EbisuModel(second.get(2).asDouble(), second.get(0).asDouble(), second.get(1).asDouble());
 
         if (operation.equals("update")) {
           boolean quiz = subtest.get(2).get(0).asBoolean();
           double t = subtest.get(2).get(1).asDouble();
           JsonNode third = subtest.get(3).get("post");
           EbisuModel expected =
-              new EbisuModel(third.get(0).asDouble(), third.get(1).asDouble(), third.get(2).asDouble());
+              new EbisuModel(third.get(2).asDouble(), third.get(0).asDouble(), third.get(1).asDouble());
 
           EbisuInterface actual = Ebisu.updateRecall(ebisu, quiz, t);
 
@@ -76,7 +76,7 @@ class EbisuTests {
   @DisplayName("verify halflife")
   void testHalflife() {
     double hl = 20.0;
-    EbisuModel m = new EbisuModel(2, 2, hl);
+    EbisuModel m = new EbisuModel(hl, 2, 2);
     assertTrue(Math.abs(Ebisu.modelToPercentileDecay(m, .5, true) - hl) > 1e-2);
     assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, 1e-6), hl) < 1e-3);
     assertThrows(TooManyEvaluationsException.class, () -> Ebisu.modelToPercentileDecay(m, .5, 1e-150));
