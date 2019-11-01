@@ -8,7 +8,7 @@ An official [JavaScript port](https://github.com/fasiha/ebisu.js) also exists, a
 
 ## Install
 
-See [JitPack](https://jitpack.io/#me.aldebrn/ebisu-java/v1.0) for Gradle, sbt, and lein instructions but for Maven, add JitPack as a repository:
+See [JitPack](https://jitpack.io/#me.aldebrn/ebisu-java) for Gradle, sbt, and lein instructions but for Maven, first add JitPack as a repository:
 ```xml
 	<repositories>
 		<repository>
@@ -22,9 +22,10 @@ and then the following dependency:
 	<dependency>
 	    <groupId>me.aldebrn</groupId>
 	    <artifactId>ebisu-java</artifactId>
-	    <version>Tag</version>
+	    <version>_____Tag_____</version>
 	</dependency>
 ```
+where you must replace `_____Tag_____` above with whatever the latest version on JitPack. (See notes below on ComVer.)
 
 ## API
 
