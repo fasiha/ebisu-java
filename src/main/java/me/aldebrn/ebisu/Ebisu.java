@@ -2,12 +2,10 @@ package me.aldebrn.ebisu;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import me.aldebrn.gamma.Gamma;
 import org.apache.commons.math3.analysis.solvers.BisectionSolver;
-import org.apache.commons.math3.special.Gamma;
 
 /**
  * Noninstantiable class to provides `predictRecall` and `updateRecall` methods
@@ -15,27 +13,17 @@ import org.apache.commons.math3.special.Gamma;
  */
 public class Ebisu {
   /**
-   * This will cache calls to logGamma
-   */
-  private static Map<Double, Double> LOGGAMMA_CACHE = new ConcurrentHashMap<>();
-
-  /**
-   * Memoized logGamma
-   */
-  private static Double logGammaCached(Double x) { return LOGGAMMA_CACHE.computeIfAbsent(x, y -> Gamma.logGamma(y)); }
-
-  /**
    * Evaluates `log(Beta(a1, b) / Beta(a, b))`
    */
   private static Double logBetaRatio(Double a1, Double a, Double b) {
-    return Gamma.logGamma(a1) - Gamma.logGamma(a1 + b) + logGammaCached(a + b) - logGammaCached(a);
+    return Gamma.gammaln(a1) - Gamma.gammaln(a1 + b) + Gamma.gammaln(a + b) - Gamma.gammaln(a);
   }
 
   /**
    * Evaluates `log(Beta(a,b)) = Gamma(a) Gamma(b) / Gamma(a+b)`
    */
   private static Double logBeta(Double a, Double b) {
-    return logGammaCached(a) + logGammaCached(b) - logGammaCached(a + b);
+    return Gamma.gammaln(a) + Gamma.gammaln(b) - Gamma.gammaln(a + b);
   }
 
   /**
@@ -62,7 +50,7 @@ public class Ebisu {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
     double dt = tnow / prior.getTime();
-    double ret = logBetaRatio(alpha + dt, alpha, beta);
+    double ret = prior.gammalnDiff() + Gamma.gammaln(alpha + dt) - Gamma.gammaln(alpha + beta + dt);
     return exact ? Math.exp(ret) : ret;
   }
 
@@ -172,8 +160,14 @@ public class Ebisu {
         EbisuModel proposed = new EbisuModel(t, alpha + dt, beta);
         return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
       }
-      double logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
-      double logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
+      double fixed = Gamma.gammaln(alpha + dt + beta) - Gamma.gammaln(alpha + dt);
+
+      double meanTopleft = alpha + dt / et * (1 + et);
+      double logmean = fixed + Gamma.gammaln(meanTopleft) - Gamma.gammaln(meanTopleft + beta);
+
+      double m2TopLeft = meanTopleft + dt / et;
+      double logm2 = fixed + Gamma.gammaln(m2TopLeft) - Gamma.gammaln(m2TopLeft + beta);
+
       mean = Math.exp(logmean);
       sig2 = subtractexp(logm2, 2 * logmean);
     } else {

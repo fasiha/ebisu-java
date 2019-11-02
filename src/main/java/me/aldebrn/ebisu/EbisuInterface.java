@@ -1,5 +1,7 @@
 package me.aldebrn.ebisu;
 
+import me.aldebrn.gamma.Gamma;
+
 /**
  * Interface that an Ebisu model must meet.
  *
@@ -28,4 +30,11 @@ public interface EbisuInterface {
    * @return time
    */
   public double getTime();
+
+  /**
+   * Returns `log(Gamma(alpha+beta) / Gamma(alpha))`, equivalent to `logGamma(alpha+beta) - logGamma(alpha)`
+   */
+  default double gammalnDiff() {
+    return Gamma.gammaln(this.getAlpha() + this.getBeta()) - Gamma.gammaln(this.getAlpha());
+  }
 }
