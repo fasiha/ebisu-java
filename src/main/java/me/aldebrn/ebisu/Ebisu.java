@@ -6,8 +6,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.IntStream;
-import org.apache.commons.math3.analysis.solvers.BisectionSolver;
-import org.apache.commons.math3.special.Gamma;
+import me.aldebrn.gamma.Gamma;
+import me.aldebrn.mingolden.Min;
+import me.aldebrn.mingolden.Status;
 
 /**
  * Noninstantiable class to provides `predictRecall` and `updateRecall` methods
@@ -22,13 +23,13 @@ public class Ebisu {
   /**
    * Memoized logGamma
    */
-  private static Double logGammaCached(Double x) { return LOGGAMMA_CACHE.computeIfAbsent(x, y -> Gamma.logGamma(y)); }
+  private static Double logGammaCached(Double x) { return LOGGAMMA_CACHE.computeIfAbsent(x, y -> Gamma.gammaln(y)); }
 
   /**
    * Evaluates `log(Beta(a1, b) / Beta(a, b))`
    */
   private static Double logBetaRatio(Double a1, Double a, Double b) {
-    return Gamma.logGamma(a1) - Gamma.logGamma(a1 + b) + logGammaCached(a + b) - logGammaCached(a);
+    return Gamma.gammaln(a1) - Gamma.gammaln(a1 + b) + logGammaCached(a + b) - logGammaCached(a);
   }
 
   /**
@@ -296,8 +297,9 @@ public class Ebisu {
 
     if (!(flow > 0 && fhigh < 0)) { throw new RuntimeException("failed to bracket"); }
     if (coarse) { return (Math.exp(blow) + Math.exp(bhigh)) / 2 * t0; }
-    BisectionSolver solver = new BisectionSolver(tolerance);
-    double sol = solver.solve(10000, y -> f.apply(y), blow, bhigh);
+    Status status = Min.min(y -> Math.abs(f.apply(y)), blow, bhigh, tolerance, 10000);
+    assert status.converged;
+    double sol = status.argmin;
     return Math.exp(sol) * t0;
   }
 

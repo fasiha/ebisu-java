@@ -11,11 +11,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.commons.math3.exception.TooManyEvaluationsException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 class EbisuTests {
-  private double eps = Math.ulp(1.0);
+  private double eps = 2 * Math.ulp(1.0);
 
   private static double relerr(double dirt, double gold) {
     return (dirt == gold) ? 0 : Math.abs(dirt - gold) / Math.abs(gold);
@@ -79,7 +78,7 @@ class EbisuTests {
     EbisuModel m = new EbisuModel(hl, 2, 2);
     assertTrue(Math.abs(Ebisu.modelToPercentileDecay(m, .5, true) - hl) > 1e-2);
     assertTrue(relerr(Ebisu.modelToPercentileDecay(m, .5, 1e-6), hl) < 1e-3);
-    assertThrows(TooManyEvaluationsException.class, () -> Ebisu.modelToPercentileDecay(m, .5, 1e-150));
+    assertThrows(AssertionError.class, () -> Ebisu.modelToPercentileDecay(m, .5, 1e-150));
   }
 
   @Test
