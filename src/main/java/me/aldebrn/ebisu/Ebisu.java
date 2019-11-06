@@ -13,6 +13,13 @@ import org.apache.commons.math3.analysis.solvers.BisectionSolver;
  */
 public class Ebisu {
   /**
+   * Evaluates `log(Beta(a1, b) / Beta(a, b))`
+   */
+  private static Double logBetaRatio(Double a1, Double a, Double b) {
+    return Gamma.gammaln(a1) - Gamma.gammaln(a1 + b) + Gamma.gammaln(a + b) - Gamma.gammaln(a);
+  }
+
+  /**
    * Evaluates `log(Beta(a,b)) = Gamma(a) Gamma(b) / Gamma(a+b)`
    */
   private static Double logBeta(Double a, Double b) {
@@ -21,6 +28,7 @@ public class Ebisu {
 
   /**
    * Estimate recall log-probability (real number between -∞ and +∞)
+   * @param prior the
    * @param prior the existing Ebisu model
    * @param tnow the time elapsed since this model was last reviewed
    * @return log-probability of recall
