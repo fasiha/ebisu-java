@@ -1,7 +1,4 @@
 package me.aldebrn.ebisu;
-
-import me.aldebrn.gamma.Gamma;
-
 /**
  * Wrapper class to store three numbers representing an Ebisu model.
  *
@@ -21,7 +18,6 @@ public class EbisuModel implements EbisuInterface {
   private double alpha;
   private double beta;
   private double time;
-  private double logGammaAlphaPlusBetaDivGammaAlpha;
 
   /**
    * Plain object constructor.
@@ -34,7 +30,6 @@ public class EbisuModel implements EbisuInterface {
     this.alpha = alpha;
     this.beta = beta;
     this.time = time;
-    this.logGammaAlphaPlusBetaDivGammaAlpha = Gamma.gammaln(alpha + beta) - Gamma.gammaln(alpha);
   }
 
   /**
@@ -46,7 +41,6 @@ public class EbisuModel implements EbisuInterface {
     this.alpha = 4;
     this.beta = 4;
     this.time = time;
-    this.logGammaAlphaPlusBetaDivGammaAlpha = Gamma.gammaln(alpha + beta) - Gamma.gammaln(alpha);
   }
 
   /**
@@ -58,7 +52,6 @@ public class EbisuModel implements EbisuInterface {
     this.alpha = alphaBeta;
     this.beta = alphaBeta;
     this.time = time;
-    this.logGammaAlphaPlusBetaDivGammaAlpha = Gamma.gammaln(alpha + beta) - Gamma.gammaln(alpha);
   }
 
   /**
@@ -85,6 +78,4 @@ public class EbisuModel implements EbisuInterface {
   public String toString() {
     return "Model(" + this.alpha + ", " + this.beta + ", " + this.time + ")";
   }
-
-  public double gammalnDiff() { return this.logGammaAlphaPlusBetaDivGammaAlpha; }
 }

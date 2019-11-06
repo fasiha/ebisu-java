@@ -15,7 +15,7 @@ import org.apache.commons.math3.exception.TooManyEvaluationsException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 class EbisuTests {
-  private double eps = 2 * Math.ulp(1.0);
+  private double eps = Math.ulp(1.0);
 
   private static double relerr(double dirt, double gold) {
     return (dirt == gold) ? 0 : Math.abs(dirt - gold) / Math.abs(gold);
