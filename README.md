@@ -48,7 +48,7 @@ The Ebisu algorithm uses three numbers to model each flashcard, and they’re ca
 
 > Statistics professor note: the algorithm treats recall probability at time `t` to be a [Beta](https://en.wikipedia.org/wiki/Beta_distribution)-distributed random variable with parameters `α` and `β`. See the document accompanying the [Ebisu Python](https://fasiha.github.io/ebisu/) implementation for all the mathematical derivations.
 
-There are three constructors for the `EbisuModel` class, which allow you to set one, two, or all three parameters but, caveat!, their orders are a little different:
+There are three constructors for the `EbisuModel` class, which allow you to set one, two, or all three parameters:
 ```java
 double halflife = 0.25;
 EbisuInterface model1 = new EbisuModel(halflife); // α=4, β=4, t=0.25
@@ -57,7 +57,7 @@ double alpha = 2;
 EbisuInterface model2 = new EbisuModel(halflife, alpha); // α=2, β=α, t=0.25
 
 double beta = 2;
-EbisuInterface model3 = new EbisuModel(alpha, beta, halflife); // same as above
+EbisuInterface model3 = new EbisuModel(halflife, alpha, beta); // same as above
 ```
 In jshell:
 ```java
@@ -76,7 +76,7 @@ model2 ==> Model(2.0, 2.0, 0.25)
 jshell> double beta = 2;
 beta ==> 2.0
 
-jshell> EbisuInterface model3 = new EbisuModel(alpha, beta, halflife); // same as above
+jshell> EbisuInterface model3 = new EbisuModel(halflife, alpha, beta); // same as above
 model3 ==> Model(2.0, 2.0, 0.25)
 ```
 
