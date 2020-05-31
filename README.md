@@ -114,29 +114,35 @@ Here we pretend that *exactly* the halflife has elapsed and we want to know what
 
 Obviously, if `timeElapsed` is very small (i.e., one minute in the above example), the (log-)probability of recall will be very high. If the time elapsed is very large (a year), the log-probability of recall will be very low.
 
-When you have learned many flashcards, each one with its own memory model object (and don’t forget the timestamp!), you can loop through all of them, calling `predictRecall` on each, and finding the flashcard most in danger of being forgotten, and quizzing on that. After the student succeeds or fails the quiz, it is time to update the memory model.
+When you have learned many flashcards, each one with its own memory model object (and don’t forget the timestamp!), you can loop through all of them, calling `predictRecall` on each, and finding the flashcard most in danger of being forgotten, and quizzing on that. After a quiz session, it is time to update the memory model.
 
-### Update a recall probability model given a quiz result: `EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow)`
-Ebisu treats quiz results as boolean: either pass or fail. In either case, compute the time elapsed since this flashcard’s memory model was last created and then:
+### Update a recall probability model given a quiz result: `EbisuInterface updateRecall(EbisuInterface prior, int successes, int total, double tnow)`
+A quiz session contains a one or more statistically-independent trials where the student attempts to recall the fact being quizzed. Many facts can only be reviewed once in a quiz session—you wouldn’t ask the student twice in two minutes what the capital of Mongolia is, and in that case, the quiz is *boolean*. However, some facts can be reviewed multiple times in one sitting without breaking the assumption of statistical independence, for example, verb conjugations.
+
+At the end of a quiz session, collect the number of trials that with a successful result, compute the time elapsed since this flashcard’s memory model was last created, and then:
 ```java
-boolean result = true;
+int successes = 1;
+int total = 1;
 double timeElapsed = 0.3;
-EbisuInterface updatedModel = Ebisu.updateRecall(model1, result, timeElapsed);
+EbisuInterface updatedModel = Ebisu.updateRecall(model1, successes, total, timeElapsed);
 ```
 In jshell:
 ```java
-jshell> boolean result = true;
-result ==> true
+jshell> int successes = 1;
+successes ==> 1
+
+jshell> int total = 1;
+total ==> 1
 
 jshell> double timeElapsed = 0.3;
 timeElapsed ==> 0.3
 
-jshell> EbisuInterface updatedModel = Ebisu.updateRecall(model1, result, timeElapsed);
-updatedModel ==> Model(5.2, 4.0, 0.25)
+jshell> EbisuInterface updatedModel = Ebisu.updateRecall(model1, successes, total, timeElapsed);
+updatedModel ==> Model(5.199999999999757, 3.9999999999997917, 0.25)
 ```
 The updated model will have new `alpha`, `beta`, and `time` parameters inside it based on whether the quiz was success or not, and how much time has elapsed since the memory model was updated. Update your database with this new memory model and a timestamp of when the quiz occurred to continue the cycle.
 
-> Statistics professor note: the Beta distribution at `time` on memory recall is assumed to decay exponentially, so is nonlinearly and exactly transformed into a [generalized Beta of the first kind (GB1)](https://en.wikipedia.org/w/index.php?title=Generalized_beta_distribution&oldid=913561520#Generalized_beta_of_first_kind_(GB1)). The quiz itself is modeled as a Bernoulli trial, with probability of success governed by this GB1 distribution. The posterior is non-conjugate but turns out to have analytically-tractable moments, which are transformed into a new Beta random variable, at some new `time` in the future close to the halflife, via moment-matching. Again, mathematical details accompany the [Ebisu Python](https://fasiha.github.io/ebisu/) reference implementation.
+> Statistics professor note: the Beta distribution at `time` on memory recall is assumed to decay exponentially, so is nonlinearly and exactly transformed into a [generalized Beta of the first kind (GB1)](https://en.wikipedia.org/w/index.php?title=Generalized_beta_distribution&oldid=913561520#Generalized_beta_of_first_kind_(GB1)). The quiz itself is modeled as a binomial random variable, with probability of success governed by this GB1 distribution. The posterior is non-conjugate but turns out to have analytically-tractable moments, which are transformed into a new Beta random variable, at some new `time` in the future close to the halflife, via moment-matching. Again, mathematical details accompany the [Ebisu Python](https://fasiha.github.io/ebisu/) reference implementation.
 
 ### Bonus: compute the time for a memory model’s probability of recall to decay to some percentile: `double modelToPercentileDecay(EbisuInterface model[, double percentile[, double tolerance]])`
 For display purposes, or for caching purposes, it can be useful to know at what point in the future a given memory model will decay to a given percentile. This function answers that question.
@@ -186,8 +192,8 @@ Example: Java version 1.1.0 and Python version 1.0.0 implement the same algorith
 Upshot: if you’re using 1.1.x, you can safely update to 1.1.y. But you might not be able to update to 1.2.z without checking the changelog below to see if the backwards-incompatible changes affect you.
 
 ### Changelog
-#### 1.0.x
-Algorithm and feature-parity with Python 1.0.0 and JavaScript 1.0.0.
+#### 2.0.0
+Version 2.0 of the Ebisu algorithm, allowing quizzes to be *binomial* instead of *Bernoulli* (binary): `updateRecall` no longer takes a `boolean` result, but rather two integers: `successes` and `total`, modeling a quiz *session* with potentially more than one (statistically-independent) trial of the same fact.
 
 ### 1.1.0
 Change API for three-argument constructor of `EbisuModel`:
@@ -195,6 +201,9 @@ Change API for three-argument constructor of `EbisuModel`:
 - **NEW** `public EbisuModel(double time, double alpha, double beta)` (note `time` moved from last to first argument).
 
 This will match Python/JavaScript’s `defaultModel` function and also harmonizes EbisuModel’s one- and two-argument constructors.
+
+#### 1.0.x
+Algorithm and feature-parity with Python 1.0.0 and JavaScript 1.0.0.
 
 ## Acknowledgements
 
