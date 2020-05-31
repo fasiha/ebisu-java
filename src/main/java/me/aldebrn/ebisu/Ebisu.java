@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import me.aldebrn.gamma.Gamma;
 import me.aldebrn.mingolden.Min;
@@ -104,26 +105,6 @@ public class Ebisu {
   }
 
   /**
-   * Stably calculate `log(exp(a) - exp(b))`.
-   */
-  private static double logsubexp(Double a, Double b) { return logSumExp(List.of(a, b), List.of(1.0, -1.0))[0]; }
-
-  /**
-   * Given two numbers in the log domain, subtract them and leave them in the
-   * linear domain.
-   *
-   * Analogous to `exp(x) - exp(y)`, but more stable when `x` and `y` are huge.
-   *
-   * @param x First value (in log domain)
-   * @param y Second value (in log domain)
-   * @return result in the linear domain, Analogous to `exp(x) - exp(y)`
-   */
-  private static double subtractexp(double x, double y) {
-    double maxval = Math.max(x, y);
-    return Math.exp(maxval) * (Math.exp(x - maxval) - Math.exp(y - maxval));
-  }
-
-  /**
    * Convert the mean and variance of a Beta distribution to its parameters.
    *
    * See
@@ -147,50 +128,67 @@ public class Ebisu {
    * fact was last seen, yield a new Ebisu model.
    *
    * @param prior the existing Ebisu model
-   * @param result the result of the quiz: true means pass, false means failed
+   * @param successes number of successful reviews out of `total`
+   * @param total number of times this fact was reviewed
    * @param tnow time elapsed since quiz was last visited
    * @return new posterior (updated) Ebisu model
    */
-  public static EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow) {
-    return updateRecall(prior, result, tnow, true, prior.getTime());
+  public static EbisuInterface updateRecall(EbisuInterface prior, int successes, int total, double tnow) {
+    return updateRecall(prior, successes, total, tnow, true, prior.getTime());
   }
+
+  /** log of the binomial coefficient */
+  private static double logBinom(int n, int k) { return -logBeta(1.0 + n - k, 1.0 + k) - Math.log(n + 1.0); }
 
   /**
    * Actual worker method that calculates the posterior memory model at the same
    * time in the future as the prior, and rebalances as necessary.
    */
-  private static EbisuInterface updateRecall(EbisuInterface prior, boolean result, double tnow, boolean rebalance,
-                                             double tback) {
+  private static EbisuInterface updateRecall(EbisuInterface prior, int successes, int total, double tnow,
+                                             boolean rebalance, double tback) {
     double alpha = prior.getAlpha();
     double beta = prior.getBeta();
     double t = prior.getTime();
     double dt = tnow / t;
-    double et = tnow / tback;
-    double mean = 0;
-    double sig2 = 0;
-    if (result) {
-      if (tback == t) {
-        EbisuModel proposed = new EbisuModel(t, alpha + dt, beta);
-        return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
-      }
-      double logmean = logBetaRatio(alpha + dt / et * (1 + et), alpha + dt, beta);
-      double logm2 = logBetaRatio(alpha + dt / et * (2 + et), alpha + dt, beta);
-      mean = Math.exp(logmean);
-      sig2 = subtractexp(logm2, 2 * logmean);
-    } else {
-      double logDenominator = logsubexp(logBeta(alpha, beta), logBeta(alpha + dt, beta));
-      mean = subtractexp(logBeta(alpha + dt / et, beta) - logDenominator,
-                         logBeta(alpha + dt / et * (et + 1), beta) - logDenominator);
-      double m2 = subtractexp(logBeta(alpha + 2 * dt / et, beta) - logDenominator,
-                              logBeta(alpha + dt / et * (et + 2), beta) - logDenominator);
-      if (m2 <= 0) { throw new RuntimeException("invalid second moment found"); }
-      sig2 = m2 - mean * mean;
-    }
+    double et = tback / tnow;
+
+    double[] binomlns =
+        IntStream.range(0, total - successes + 1).mapToDouble(i -> logBinom(total - successes, i)).toArray();
+    double[] logs =
+        IntStream.range(0, 3)
+            .mapToDouble(m -> {
+              List<Double> a =
+                  IntStream.range(0, total - successes + 1)
+                      .mapToDouble(i -> binomlns[i] + logBeta(beta, alpha + dt * (successes + i) + m * dt * et))
+                      .boxed()
+                      .collect(Collectors.toList());
+              List<Double> b = IntStream.range(0, total - successes + 1)
+                                   .mapToDouble(i -> Math.pow(-1.0, i))
+                                   .boxed()
+                                   .collect(Collectors.toList());
+              return logSumExp(a, b)[0];
+            })
+            .toArray();
+
+    double logDenominator = logs[0];
+    double logMeanNum = logs[1];
+    double logM2Num = logs[2];
+
+    double mean = Math.exp(logMeanNum - logDenominator);
+    double m2 = Math.exp(logM2Num - logDenominator);
+    double meanSq = Math.exp(2 * (logMeanNum - logDenominator));
+    double sig2 = m2 - meanSq;
+
     if (mean <= 0) { throw new RuntimeException("invalid mean found"); }
-    if (sig2 <= 0) { throw new RuntimeException("invalid variance found"); }
+    if (m2 <= 0) { throw new RuntimeException("invalid second moment found"); }
+    if (sig2 <= 0) {
+      throw new RuntimeException("invalid variance found " +
+                                 String.format("a=%g, b=%g, t=%g, k=%d, n=%d, tnow=%g, mean=%g, m2=%g, sig2=%g", alpha,
+                                               beta, t, successes, total, tnow, mean, m2, sig2));
+    }
     List<Double> newAlphaBeta = meanVarToBeta(mean, sig2);
     EbisuModel proposed = new EbisuModel(tback, newAlphaBeta.get(0), newAlphaBeta.get(1));
-    return rebalance ? rebalance(prior, result, tnow, proposed) : proposed;
+    return rebalance ? rebalance(prior, successes, total, tnow, proposed) : proposed;
   }
 
   /**
@@ -199,12 +197,13 @@ public class Ebisu {
    * parameters are close. In other words, move the posterior closer to its
    * approximate halflife for numerical stability.
    */
-  private static EbisuInterface rebalance(EbisuInterface prior, boolean result, double tnow, EbisuInterface proposed) {
+  private static EbisuInterface rebalance(EbisuInterface prior, int successes, int total, double tnow,
+                                          EbisuInterface proposed) {
     double newAlpha = proposed.getAlpha();
     double newBeta = proposed.getBeta();
     if (newAlpha > 2 * newBeta || newBeta > 2 * newAlpha) {
       double roughHalflife = modelToPercentileDecay(proposed, 0.5, true);
-      return updateRecall(prior, result, tnow, false, roughHalflife);
+      return updateRecall(prior, successes, total, tnow, false, roughHalflife);
     }
     return proposed;
   }

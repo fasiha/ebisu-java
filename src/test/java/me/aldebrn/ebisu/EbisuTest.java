@@ -30,12 +30,11 @@ class EbisuTests {
     ObjectMapper mapper = new ObjectMapper();
     try {
       JsonNode jsonRoot = mapper.readTree(result);
-      double maxTol = 1e-3;
+      double maxTol = 5e-3;
       for (JsonNode subtest : jsonRoot) {
         // subtest might be either
-        // a) ["update", [3.3, 4.4, 1.0], [false, 0.1], {"post": [3.0014993214093426, 5.492666532778273, 1.0]}
-        // or
-        // b) ["predict", [34.4, 34.4, 1.0], [5.5], {"mean": 0.026134289032202798}]
+        // a) ["update", [3.3, 4.4, 1.0], [0, 5, 0.1], {"post": [7.333641958415551, 8.949256654818793,
+        // 0.4148304099305316]}] or b) ["predict", [34.4, 34.4, 1.0], [5.5], {"mean": 0.026134289032202798}]
         //
         // In both cases, the first two elements are a string and an array of numbers. Then the remaining vary depend on
         // what that string is. where the numbers are arbitrary. So here we go...
@@ -45,13 +44,14 @@ class EbisuTests {
         EbisuModel ebisu = new EbisuModel(second.get(2).asDouble(), second.get(0).asDouble(), second.get(1).asDouble());
 
         if (operation.equals("update")) {
-          boolean quiz = subtest.get(2).get(0).asBoolean();
-          double t = subtest.get(2).get(1).asDouble();
+          int successes = subtest.get(2).get(0).asInt();
+          int total = subtest.get(2).get(1).asInt();
+          double t = subtest.get(2).get(2).asDouble();
           JsonNode third = subtest.get(3).get("post");
           EbisuModel expected =
               new EbisuModel(third.get(2).asDouble(), third.get(0).asDouble(), third.get(1).asDouble());
 
-          EbisuInterface actual = Ebisu.updateRecall(ebisu, quiz, t);
+          EbisuInterface actual = Ebisu.updateRecall(ebisu, successes, total, t);
 
           assertEquals(expected.getAlpha(), actual.getAlpha(), maxTol);
           assertEquals(expected.getBeta(), actual.getBeta(), maxTol);
@@ -66,7 +66,8 @@ class EbisuTests {
         }
       }
     } catch (Exception e) {
-      System.out.println(e.getStackTrace());
+      e.printStackTrace();
+      System.out.println("¡¡¡OOOPS SOMETHING BAD HAPPENED!!!");
       assert false;
     }
   }
@@ -93,8 +94,8 @@ class EbisuTests {
   @DisplayName("Ebisu update at exactly half-life")
   void update() {
     EbisuInterface m = new EbisuModel(2, 2, 2);
-    EbisuInterface success = Ebisu.updateRecall(m, true, 2.0);
-    EbisuInterface failure = Ebisu.updateRecall(m, false, 2.0);
+    EbisuInterface success = Ebisu.updateRecall(m, 1, 1, 2.0);
+    EbisuInterface failure = Ebisu.updateRecall(m, 0, 1, 2.0);
 
     assertEquals(3.0, success.getAlpha(), 500 * eps, "success/alpha");
     assertEquals(2.0, success.getBeta(), 500 * eps, "success/beta");
